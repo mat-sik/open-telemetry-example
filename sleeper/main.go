@@ -82,13 +82,14 @@ func newHTTPHandler(tracer trace.Tracer, meter metric.Meter) http.Handler {
 	mux := http.NewServeMux()
 
 	handleFunc := func(pattern string, handler http.Handler) {
-		handler = otelhttp.NewHandler(otelhttp.WithRouteTag(pattern, handler), pattern)
+		handler = otelhttp.WithRouteTag(pattern, handler)
 		mux.Handle(pattern, handler)
 	}
 
 	handleFunc("POST /sleeper", sleeperHandler{tracer: tracer, meter: meter})
 
-	return mux
+	handler := otelhttp.NewHandler(mux, "/")
+	return handler
 }
 
 type sleeperHandler struct {

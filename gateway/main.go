@@ -89,13 +89,14 @@ func newHTTPHandler(client *http.Client, tracer trace.Tracer, meter metric.Meter
 	mux := http.NewServeMux()
 
 	handleFunc := func(pattern string, handler http.Handler) {
-		handler = otelhttp.NewHandler(otelhttp.WithRouteTag(pattern, handler), pattern)
+		handler = otelhttp.WithRouteTag(pattern, handler)
 		mux.Handle(pattern, handler)
 	}
 
 	handleFunc("POST /gateway", gatewayHandler{client: client, tracer: tracer, meter: meter})
 
-	return mux
+	handler := otelhttp.NewHandler(mux, "/")
+	return handler
 }
 
 type gatewayHandler struct {
