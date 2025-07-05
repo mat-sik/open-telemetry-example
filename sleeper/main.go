@@ -113,7 +113,10 @@ func (h sleeperHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	if err = h.sleep(ctx, sleeperReq); err != nil {
+		span.SetStatus(codes.Error, "Failed to to sleep")
+		span.RecordError(err)
 		common.HandleError(rw, err)
+		return
 	}
 }
 

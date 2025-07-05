@@ -119,6 +119,8 @@ func (h gatewayHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 
 	bag, err := h.createBaggageFromQueryParams(ctx, req)
 	if err != nil {
+		span.SetStatus(codes.Error, "Failed to create baggage from query parameters")
+		span.RecordError(err)
 		common.HandleError(rw, err)
 		return
 	}
@@ -126,12 +128,16 @@ func (h gatewayHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	ctx = baggage.ContextWithBaggage(ctx, bag)
 
 	if err = h.sleep(ctx, sleeperReq); err != nil {
+		span.SetStatus(codes.Error, "Failed to to sleep")
+		span.RecordError(err)
 		common.HandleError(rw, err)
 		return
 	}
 
 	resp, err := h.remoteCallSleeper(ctx, bodyBytes)
 	if err != nil {
+		span.SetStatus(codes.Error, "Failed to to remote call sleeper")
+		span.RecordError(err)
 		common.HandleError(rw, err)
 		return
 	}
@@ -142,7 +148,11 @@ func (h gatewayHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		}
 	}()
 
-	h.handleResponse(ctx, rw, resp)
+	if err = h.handleResponse(ctx, rw, resp); err != nil {
+		span.SetStatus(codes.Error, "Failed to to remote call sleeper")
+		span.RecordError(err)
+		return
+	}
 }
 
 func (h gatewayHandler) createBaggageFromQueryParams(ctx context.Context, req *http.Request) (baggage.Baggage, error) {
@@ -206,7 +216,7 @@ func (h gatewayHandler) remoteCallSleeper(ctx context.Context, bodyBytes []byte)
 	return resp, err
 }
 
-func (h gatewayHandler) handleResponse(ctx context.Context, rw http.ResponseWriter, resp *http.Response) {
+func (h gatewayHandler) handleResponse(ctx context.Context, rw http.ResponseWriter, resp *http.Response) error {
 	ctx, span := h.tracer.Start(ctx, "handleResponse")
 	defer span.End()
 
@@ -216,16 +226,18 @@ func (h gatewayHandler) handleResponse(ctx context.Context, rw http.ResponseWrit
 
 	n, err := io.Copy(rw, resp.Body)
 	if err != nil {
+		span.SetStatus(codes.Error, "Reading response body failed")
 		span.RecordError(err, trace.WithAttributes(
 			attribute.Int64("response.bytes_copied", n),
 		))
 		slog.Error("failed to copy response body", "copied bytes amount:", n, "err", err)
-		return
+		return common.NewAppError(err, http.StatusInternalServerError)
 	}
 
 	span.AddEvent("Response body copied successfully", trace.WithAttributes(
 		attribute.Int64("response.bytes_copied", n),
 	))
+	return nil
 }
 
 const (
