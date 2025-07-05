@@ -29,11 +29,12 @@ func main() {
 
 	shutdown, err := setup.InitOTelSDK(ctx, exporterHost, serviceName)
 	if err != nil {
-		panic(err)
+		slog.Error("Failed to initialize otel SDK", "err", err)
+		return
 	}
 	defer func() {
 		if err = shutdown(ctx); err != nil {
-			panic(err)
+			slog.Error("Failed to shutdown otel SDK", "err", err)
 		}
 	}()
 
@@ -63,8 +64,17 @@ func runServer(ctx context.Context, tracer trace.Tracer, meter metric.Meter) {
 
 	select {
 	case err := <-srvErr:
-		panic(err)
+		slog.Error("Received server error", "err", err)
 	case <-ctx.Done():
+		slog.Info("Shutting down server...")
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		err := srv.Shutdown(shutdownCtx)
+		if err != nil {
+			slog.Error("Server shutdown failed", "err", err)
+		}
+		slog.Info("Server shutdown complete")
 	}
 }
 
