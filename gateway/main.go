@@ -196,7 +196,7 @@ func (h gatewayHandler) sleep(ctx context.Context, req common.SleeperRequest) er
 	defer span.End()
 
 	span.AddEvent("Starting sleep operation", trace.WithAttributes(
-		attribute.Int64("sleep_duration_ms", int64(time.Duration(req.GatewaySleepFor)/time.Millisecond)),
+		attribute.String("sleep_duration", time.Duration(req.GatewaySleepFor).String()),
 	))
 
 	select {
