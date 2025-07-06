@@ -27,7 +27,7 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 
-	shutdown, err := setup.InitOTelSDK(ctx, exporterHost, serviceName)
+	shutdown, err := setup.InitOTelSDK(ctx, collectorHost, serviceName)
 	if err != nil {
 		slog.Error("Failed to initialize otel SDK", "err", err)
 		return
@@ -154,5 +154,5 @@ func (h sleeperHandler) sleep(ctx context.Context, req common.SleeperRequest) er
 const (
 	instrumentationScope = "github.com/mat-sik/open-telemetry-example/sleeper"
 	serviceName          = "sleeper"
-	exporterHost         = "localhost:4317"
+	collectorHost        = "localhost:4317"
 )
